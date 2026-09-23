@@ -2,8 +2,8 @@
   border: 0;
   border-radius: 6px;
   padding: 0.6rem 0.9rem;
-  background: #dc2626;
-  color: #fff;
+  background: #facc15;
+  color: #1f2937;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -11,7 +11,7 @@
 }
 
 .button:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #eab308;
   transform: translateY(-1px);
 }
 
@@ -45,4 +45,5 @@
   background: #f3f4f6;
   white-space: pre-wrap;
 }
+
 
