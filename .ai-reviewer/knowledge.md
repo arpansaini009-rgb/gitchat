@@ -2,29 +2,24 @@
 
 ## Architecture
 
-This is a small React/TypeScript browser application centered on a single `Formatter` component. `index.tsx` is the entry point: it locates `#root`, mounts the component with React `StrictMode`, and delegates UI/state and formatting behavior to `formatter.tsx`. Formatting is implemented locally as a typed helper rather than through a separate service or state-management layer.
+This is a small TypeScript/React application whose browser entry point is `index.tsx`. The primary UI is the controlled `Formatter` component in `formatter.tsx`, while `reviewScore.ts` contains a separate async review-scoring service defined around injected repository/context interfaces rather than direct API or database access.
 
 ## Conventions
 
-- Use functional React components and hooks; `Formatter` owns its UI state via `useState` in `formatter.tsx`.
-- Keep supported formatting operations constrained by the `Format` string union: `"uppercase" | "lowercase" | "titlecase" | "trim"` (`formatter.tsx`).
-- Centralize pure text transformation in `formatText(value, format)` rather than embedding transformations in JSX (`formatter.tsx`).
-- Form controls are controlled components: `<select>` and `<textarea>` bind their `value` to state and update through `onChange` (`formatter.tsx`).
-- Use semantic/accessibility-oriented HTML where present: paired `label`/`htmlFor`, a `type="button"` action button, and an `aria-live="polite"` `<output>` for results (`formatter.tsx`).
-- The application expects an HTML element with `id="root"`; startup explicitly throws if it is absent (`index.tsx`).
-- Component-specific button styles are imported from `./button.css`, while layout and form styling currently use inline style objects (`formatter.tsx`).
-- Clipboard feedback is transient: successful copy sets `copied` and resets it after 1.5 seconds using `window.setTimeout` (`formatter.tsx`).
-
-## Intentional non-standard choices
-
-- Styling is deliberately mixed: the main layout and controls use inline styles, while button/result presentation uses CSS classes from `button.css` (`formatter.tsx`). Do not flag inline styles solely for not being moved to a stylesheet.
-- The formatter is rendered under `StrictMode` in the entry point (`index.tsx`); development-only repeated lifecycle behavior is expected.
-- The format change handler uses `event.target.value as Format` (`formatter.tsx`) because the browser select value is a generic string while the options are constrained by the union.
+- Use strict TypeScript domain types and string unions for constrained values. `formatter.tsx` defines `Format` and stores it in `useState<Format>`.
+- React components are default-exported from lowercase `.tsx` files and mounted explicitly from `index.tsx`; the root element is validated before calling `createRoot`.
+- Keep form controls controlled: `Formatter` binds `text` and `format` to state and updates them through `onChange`.
+- Prefer semantic/accessibility-linked markup: labels use `htmlFor` matching control IDs, and the result uses `<output aria-live="polite">`.
+- Keep formatting logic separate from rendering in a small function (`formatText` in `formatter.tsx`) with a `switch` over the `Format` union.
+- UI styling is mixed deliberately between inline layout styles and stylesheet classes. For example, layout is inline in `formatter.tsx`, while the result heading/button styling uses `button.css` and classes such as `button` and `result-heading`.
+- Review scoring uses dependency injection through `ReviewScoreContext`. External operations are represented by async methods such as `getChangedFiles`, `getReviewComments`, and `saveReviewScore`, allowing the scoring function to remain independent of transport/storage.
+- Scoring is accumulated imperatively, then bounded before persistence. `calculateReviewScore` clamps values to the range 1–5 and saves using the pull request ID.
 
 ## Watch out for
 
-- New format options must be added consistently to the `Format` union, `formatText` switch, and the `<select>` options (`formatter.tsx`).
-- Preserve the current controlled-input behavior; introducing an uncontrolled `textarea` or `select` can desynchronize displayed input and computed output.
-- Copy actions should not be enabled for an empty result; the existing button uses `disabled={!result}` (`formatter.tsx`).
-- Changes to clipboard behavior should account for rejected `navigator.clipboard.writeText` promises; currently `copyResult` has no error handling, so failures should not incorrectly display “Copied!”.
-- Avoid removing the root-element guard in `index.tsx`; mounting without `#root` should fail with the existing explicit diagnostic rather than a cryptic DOM error.
+- Preserve the scoring order in `reviewScore.ts`: unusually large changes can set the score to 5 and break file processing, while draft pull requests later set the score to 0 before the final lower-bound clamp. Changes to ordering alter behavior.
+- Do not bypass `ReviewScoreContext` with direct API/database calls inside `calculateReviewScore`; callers provide those integrations through `this`.
+- Ensure every scoring path that is expected to persist a result calls `saveReviewScore`. The current empty/null changed-file path returns `5` early and does not save.
+- Treat filename checks as literal substring/suffix rules: `"test"` matches anywhere, and `.ts`/`.tsx` checks are case-sensitive.
+- Clipboard use in `copyResult` is asynchronous and currently has no failure handling; changes should avoid reporting “Copied!” when `navigator.clipboard.writeText` rejects.
+- Preserve the controlled textarea/select behavior and stable element IDs when modifying the formatter UI.
