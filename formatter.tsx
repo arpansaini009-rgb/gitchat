@@ -1,6 +1,7 @@
 import { useState } from "react";
+import "./button.css";
 
- type Format = "uppercase" | "lowercase" | "titlecase" | "trim";
+type Format = "uppercase" | "lowercase" | "titlecase" | "trim";
 
 const formatText = (value: string, format: Format): string => {
   switch (format) {
@@ -18,6 +19,14 @@ const formatText = (value: string, format: Format): string => {
 export default function Formatter() {
   const [text, setText] = useState("");
   const [format, setFormat] = useState<Format>("uppercase");
+  const [copied, setCopied] = useState(false);
+  const result = formatText(text, format);
+
+  async function copyResult() {
+    await navigator.clipboard.writeText(result);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <main style={{ maxWidth: 640, margin: "2rem auto", padding: "1rem", fontFamily: "sans-serif" }}>
@@ -45,12 +54,14 @@ export default function Formatter() {
         style={{ display: "block", boxSizing: "border-box", width: "100%", marginTop: "0.5rem", padding: "0.75rem" }}
       />
 
-      <h2>Result</h2>
-      <output
-        aria-live="polite"
-        style={{ display: "block", minHeight: "3rem", padding: "0.75rem", background: "#f3f4f6", whiteSpace: "pre-wrap" }}
-      >
-        {formatText(text, format)}
+      <div className="result-heading">
+        <h2>Result</h2>
+        <button className="button" type="button" onClick={copyResult} disabled={!result}>
+          {copied ? "Copied!" : "Copy result"}
+        </button>
+      </div>
+      <output className="result" aria-live="polite">
+        {result}
       </output>
     </main>
   );
