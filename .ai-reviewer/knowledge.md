@@ -1,15 +1,24 @@
 # gitchat reviewer notes
 
 ## Architecture
-The `gitchat` codebase appears to be a chat application built with a focus on real-time messaging, potentially leveraging WebSockets given the real-time nature of chat applications. The repository's organization includes modular components that handle different parts of the application, such as user authentication and message exchanges, though specific file structure and organization details are not provided in the README or sampled files.
+
+This is a small React/TypeScript browser app centered on a single `Formatter` component in `formatter.tsx`. `index.tsx` is the entry point: it locates the `#root` element, mounts the component with React `StrictMode`, and fails fast if the root is missing. Presentation is split between inline styles in the component and the imported `button.css`.
 
 ## Conventions
-- **Naming Conventions**: Components, functions, and variable names must be clear and indicative of their purpose. For example, if there were files like `UserService.js`, the naming convention follows camelCase for file names and PascalCase for class names.
-- **Message Formatting**: The application may have a specific format for incoming and outgoing messages. If message structures are defined within any of the JavaScript files, they should consistently follow a predefined schema (e.g., { username: string, message: string, timestamp: date }).
 
-## Intentional non-standard choices
-- **Use of Callbacks and Promises**: If the application uses traditional callback functions alongside Promises or async/await for asynchronous operations, this might seem inconsistent. The use of both may be intentional, allowing for flexibility in how asynchronous control flows are handled in different parts of the app.
+- Use functional React components and hooks; `Formatter` owns text, selected format, and copy-status state via `useState` in `formatter.tsx`.
+- Keep supported formatting operations explicit through the `Format` string union (`"uppercase" | "lowercase" | "titlecase" | "trim"`), and implement their behavior in the `formatText` switch.
+- Derive display values during render rather than storing redundant state: `result` is computed from `text` and `format`.
+- Form controls are controlled components. The `<select>` uses `value={format}` and updates via `onChange`; the `<textarea>` similarly binds `value={text}` and `setText`.
+- Preserve accessibility-oriented HTML patterns used here: labels connect through `htmlFor`/`id`, the result uses `<output aria-live="polite">`, and the copy control explicitly declares `type="button"`.
+- Use inline styles for component layout and control sizing, while shared/button styling is loaded with a stylesheet import (`import "./button.css"` in `formatter.tsx`).
+- Mounting should retain the root guard and descriptive error in `index.tsx`; do not silently render when the expected HTML container is absent.
+- Copy feedback is transient: successful copying sets `copied` and resets it after 1.5 seconds, with the button disabled when the formatted result is empty.
 
 ## Watch out for
-- **Lack of Input Validation**: Ensure that any user inputs (such as chat messages or usernames) are validated before processing. Failing to sanitize inputs can lead to security vulnerabilities like XSS (Cross-Site Scripting).
-- **Missing Error Handling**: Pay close attention to error handling in asynchronous requests. If there’s no catch for Promises or try-catch blocks for async functions, it could lead to unhandled promise rejections, causing crashes in the application.
+
+- Changes to the format options must update both the `Format` union and the `<option>` elements; the select handler currently relies on `event.target.value as Format`.
+- Clipboard operations are asynchronous. New copy behavior should handle `navigator.clipboard.writeText` rejection rather than leaving an unhandled promise and incorrectly implying success.
+- Avoid changing `result` to independent state; it is intentionally derived from the current input and format.
+- The title-case implementation uses `/\b\w/g`, which is ASCII-oriented and does not provide full Unicode word/casing behavior. Flag changes that claim broader internationalized title casing without corresponding implementation.
+- Preserve the empty-result guard on the copy button; otherwise users can invoke clipboard writes for empty content.
