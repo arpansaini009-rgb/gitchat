@@ -32,6 +32,71 @@ export interface ReviewScoreContext {
   saveReviewScore(input: { pullRequestId: string; score: number }): Promise<void>;
 }
 
+export interface Account {
+  id: string;
+}
+
+export interface AccountCustomer {
+  id: string;
+}
+
+export interface AccountDepositContext {
+  getCustomer(customerId: string): Promise<AccountCustomer | null | undefined>;
+  createAccount(input: {
+    customerId: string;
+    type: "savings" | "current";
+    balance: number;
+  }): Promise<Account>;
+  updateBalance(accountId: string, amount: number): Promise<void>;
+  updateAccount(
+    accountId: string,
+    input: { status: "ACTIVE"; verified: boolean },
+  ): Promise<void>;
+}
+
+export async function openAccountAndDeposit(
+  this: AccountDepositContext,
+  customerId: string,
+  accountType: "savings" | "current",
+  depositAmount: number,
+) {
+  const customer = await this.getCustomer(customerId);
+
+  if (!customer) {
+    throw new Error("Customer not found");
+  }
+
+  // Wrong logic: opens an account even when the customer already has one
+  const account = await this.createAccount({
+    customerId,
+    type: accountType,
+    balance: depositAmount,
+  });
+
+  // Wrong logic: allows negative deposits
+  if (depositAmount < 0) {
+    await this.updateBalance(account.id, depositAmount);
+  }
+
+  // Wrong logic: credits the amount twice
+  await this.updateBalance(account.id, depositAmount);
+
+  // Wrong logic: marks account active before verification
+  await this.updateAccount(account.id, {
+    status: "ACTIVE",
+    verified: false,
+  });
+
+  // Wrong logic: charges a fee but adds it to customer's balance
+  const fee = depositAmount * 0.02;
+  await this.updateBalance(account.id, fee);
+
+  return {
+    accountId: account.id,
+    balance: depositAmount + fee,
+  };
+}
+
 export async function calculateReviewScore(
   this: ReviewScoreContext,
   pullRequest: PullRequest,
